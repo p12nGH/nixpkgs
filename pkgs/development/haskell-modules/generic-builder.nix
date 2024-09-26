@@ -74,6 +74,7 @@ in
 , useCpphs ? false
 , hardeningDisable ? stdenv.lib.optional (ghc.isHaLVM or false) "all"
 , enableSeparateBinOutput ? false
+, enableSeparateDynLibOutput ? isLibrary
 , enableSeparateDataOutput ? false
 , enableSeparateDocOutput ? doHaddock
 , # Don't fail at configure time if there are multiple versions of the
@@ -117,6 +118,7 @@ let
   docdir = docoutput: docoutput + "/share/doc/" + pname + "-" + version;
 
   binDir = if enableSeparateBinOutput then "$bin/bin" else "$out/bin";
+  dynLibDir = if enableSeparateDynLibOutput then "$dynLib/lib" else "$out/lib";
 
   newCabalFileUrl = "http://hackage.haskell.org/package/${pname}-${version}/revision/${revision}.cabal";
   newCabalFile = fetchurl {
@@ -184,7 +186,11 @@ let
   ] ++ optionals isCross ([
     "--configure-option=--host=${stdenv.hostPlatform.config}"
   ] ++ crossCabalFlags
-  ) ++ optionals enableSeparateBinOutput ["--bindir=${binDir}"];
+  ) ++ optionals enableSeparateBinOutput [
+    "--bindir=${binDir}"
+  ] ++ optionals enableSeparateDynLibOutput [
+    "--dynlibdir=${dynLibDir}"
+  ];
 
   setupCompileFlags = [
     (optionalString (!coreSetup) "-${nativePackageDbFlag}=$setupPackageConfDir")
@@ -247,7 +253,8 @@ stdenv.mkDerivation ({
   outputs = [ "out" ]
          ++ (optional enableSeparateDataOutput "data")
          ++ (optional enableSeparateDocOutput "doc")
-         ++ (optional enableSeparateBinOutput "bin");
+         ++ (optional enableSeparateBinOutput "bin")
+         ++ (optional enableSeparateDynLibOutput "dynLib");
   setOutputFlags = false;
 
   pos = builtins.unsafeGetAttrPos "pname" args;
